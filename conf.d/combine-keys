@@ -1,6 +1,8 @@
 # install
-XOR=/usr/bin/xor.bin
-COMBINE_KEYS=/usr/bin/combine-keys.sh
+XOR_NAME=xor.bin
+COMBINE_KEYS_NAME=combine-keys.sh
+NORMAL_BIN=/usr/bin
+INIT_BIN=/bin
 
 # use
 KEYS_DEVICE=/dev/sdc2

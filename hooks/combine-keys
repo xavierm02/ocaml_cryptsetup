@@ -29,11 +29,11 @@ remkdir ${DESTDIR}${TMP_PATH}
 recpexec() {
 	file=$1
 	dest=$2
-	rm -f $file
+	rm -f $dest
 	copy_exec $file $dest
 }
 
-recpexec $XOR $XOR
-recpexec $COMBINE_KEYS $COMBINE_KEYS
+recpexec $NORMAL_BIN/$XOR_NAME $INIT_BIN/$XOR_NAME
+recpexec $NORMAL_BIN/$COMBINE_KEYS_NAME $INIT_BIN/$COMBINE_KEYS_NAME
 
 exit 0
