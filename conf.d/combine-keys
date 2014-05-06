@@ -1,0 +1,17 @@
+# install
+XOR=/usr/bin/xor.bin
+COMBINE_KEYS=/usr/bin/combine-keys.sh
+
+# use
+KEYS_DEVICE=/dev/sdc2
+KEYS_PATH=/keys
+KEYFILE_NAME=keyfile
+TMP_DEVICE=/dev/sdc3
+TMP_MAPPER_NAME=encrypted_tmp
+TMP_PATH=/encrypted_tmp
+KEY_NAME=key
+
+# use (computed)
+KEYFILE=$KEYS_PATH/$KEYFILE_NAME
+TMP_MAPPER=/dev/mapper/$TMP_MAPPER_NAME
+KEY=$TMP_PATH/$KEY_NAME

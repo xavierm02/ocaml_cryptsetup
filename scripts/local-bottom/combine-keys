@@ -1,0 +1,11 @@
+#!/bin/sh
+
+case $1 in
+prereqs)
+	exit 0
+	;;
+esac
+
+combine-keys.sh bottom
+
+exit 0

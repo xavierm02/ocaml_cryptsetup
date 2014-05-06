@@ -1,0 +1,39 @@
+#!/bin/sh
+
+PREREQ=""
+
+prereqs() {
+	echo "$PREREQ"
+}
+
+case $1 in
+prereqs)
+	prereqs
+	exit 0
+	;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+. /usr/share/initramfs-tools/conf.d/combine-keys
+
+remkdir() {
+	dir=$1
+	rm -rf $dir
+	mkdir $p $dir
+}
+
+remkdir ${DESTDIR}${KEYS_PATH}
+remkdir ${DESTDIR}${TMP_PATH}
+
+recpexec() {
+	file=$1
+	dest=$2
+	rm -f $file
+	copy_exec $file $dest
+}
+
+recpexec $XOR $XOR
+recpexec $COMBINE_KEYS $COMBINE_KEYS
+
+exit 0
