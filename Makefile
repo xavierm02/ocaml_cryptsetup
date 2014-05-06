@@ -12,8 +12,8 @@ clean:
 	rm -rf check
 
 install: bin/xor.bin
-	sudo cp bin/xor.bin $(BIN_NORMAL)/$(XOR_NAME)
-	sudo cp src/combine-keys.sh $(BIN_NORMAL)/$(COMBINE_KEYS_NAME)
+	sudo cp bin/xor.bin $(NORMAL_BIN)/$(XOR_NAME)
+	sudo cp src/combine-keys.sh $(NORMAL_BIN)/$(COMBINE_KEYS_NAME)
 	sudo cp -r conf.d/* /usr/share/initramfs-tools/conf.d
 	sudo cp -r scripts/* /usr/share/initramfs-tools/scripts
 	sudo cp -r hooks/* /usr/share/initramfs-tools/hooks
