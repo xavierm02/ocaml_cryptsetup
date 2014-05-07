@@ -70,7 +70,7 @@ umount_keys() {
 	umount $KEYS_PATH
 }
 
-mount_encrypted_tmp() {
+mount_usb_tmp() {
 	wait_device $TMP_DEVICE
 	verify_path $TMP_PATH
 	cryptsetup open --type plain -d /dev/urandom $TMP_DEVICE $TMP_MAPPER_NAME
@@ -78,7 +78,7 @@ mount_encrypted_tmp() {
 	verbose_mount $TMP_MAPPER $TMP_PATH
 }
 
-umount_encrypted_tmp() {
+umount_usb_tmp() {
 	umount $TMP_PATH
 	cryptsetup close $TMP_MAPPER
 }
@@ -103,12 +103,12 @@ umount-keys)
 	umount_keys
 	exit 0
 	;;
-mount-encrypted-tmp)
-	mount_encrypted_tmp
+mount-usb-tmp)
+	mount_usb_tmp
 	exit 0
 	;;
-umount-encrypted-tmp)
-	umount_encrypted_tmp
+umount-usb-tmp)
+	umount_usb_tmp
 	exit 0
 	;;
 compute-key)
@@ -117,13 +117,13 @@ compute-key)
 	;;
 top)
 	mount_keys
-	mount_encrypted_tmp
+	mount_usb_tmp
 	compute_key
 	exit 0
 	;;
 bottom)
 	delete_key
-	umount_encrypted_tmp
+	umount_usb_tmp
 	umount_key
 	exit 0
 	;;
