@@ -29,11 +29,12 @@ remkdir ${DESTDIR}${TMP_PATH}
 recpexec() {
 	file=$1
 	dest=$2
-	rm -f $dest
+	rm -f ${DESTDIR}$dest
 	copy_exec $file $dest
 }
 
 recpexec $NORMAL_BIN/$XOR_NAME $INIT_BIN/$XOR_NAME
 recpexec $NORMAL_BIN/$COMBINE_KEYS_NAME $INIT_BIN/$COMBINE_KEYS_NAME
+recpexec /sbin/mkfs.ext4 /sbin/mkfs.ext4
 
 exit 0

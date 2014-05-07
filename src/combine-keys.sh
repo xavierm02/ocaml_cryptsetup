@@ -84,8 +84,13 @@ umount_usb_tmp() {
 }
 
 compute_key() {
-	read -s -p "Password: " password
-	echo -n "Computing key and writing it to $KEY."
+	stty -echo
+	printf "Password: "
+	read password
+	stty echo
+	printf "\n"
+	echo $password
+	echo -n "Computing key and writing it to $KEY. "
 	echo -n $password | xor.bin $KEYFILE > $KEY
 	echo "Done."
 }
@@ -124,7 +129,7 @@ top)
 bottom)
 	delete_key
 	umount_usb_tmp
-	umount_key
+	umount_keys
 	exit 0
 	;;
 *)
