@@ -5,7 +5,7 @@ NORMAL_BIN=/usr/bin
 INIT_BIN=/bin
 
 # use
-KEYS_DEVICE=/dev/sdcc2
+KEYS_DEVICE=/dev/sdc2
 KEYS_PATH=/keys
 KEYFILE_NAME=keyfile
 TMP_DEVICE=/dev/sdc3
