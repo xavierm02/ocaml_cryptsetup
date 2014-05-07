@@ -86,7 +86,7 @@ umount_encrypted_tmp() {
 compute_key() {
 	read -s -p "Password: " password
 	echo -n "Computing key and writing it to $KEY."
-	echo -n $password | ./xor.bin $KEYFILE > $KEY
+	echo -n $password | xor.bin $KEYFILE > $KEY
 	echo "Done."
 }
 
@@ -117,14 +117,14 @@ compute-key)
 	;;
 top)
 	mount_keys
-	mount_encrypted_tmp
+	#mount_encrypted_tmp
 	compute_key
 	exit 0
 	;;
 bottom)
 	delete_key
-	umount_keys
-	umount_encrypted_tmp
+	#umount_encrypted_tmp
+	umount_key
 	exit 0
 	;;
 *)
