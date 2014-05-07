@@ -89,7 +89,6 @@ compute_key() {
 	read password
 	stty echo
 	printf "\n"
-	echo $password
 	echo -n "Computing key and writing it to $KEY. "
 	echo -n $password | xor.bin $KEYFILE > $KEY
 	echo "Done."
@@ -97,6 +96,11 @@ compute_key() {
 
 delete_key() {
 	rm -f $KEY
+}
+
+decrypt_disks() {
+	cryptsetup luksOpen -d /usb_tmp/key /dev/sda1 sda1_crypt
+	cryptsetup luksOpen -d /usb_tmp/key /dev/sdb1 sdb1_crypt
 }
 
 case $1 in
@@ -120,10 +124,15 @@ compute-key)
 	compute_key
 	exit 0
 	;;
+decrypt-disks)
+	decrypt_disks
+	exit 0
+	;;
 top)
 	mount_keys
 	mount_usb_tmp
 	compute_key
+	decrypt_disks
 	exit 0
 	;;
 bottom)
