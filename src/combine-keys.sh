@@ -73,7 +73,7 @@ umount_keys() {
 mount_encrypted_tmp() {
 	wait_device $TMP_DEVICE
 	verify_path $TMP_PATH
-	cryptsetup open --type plain -d /dev/random $TMP_DEVICE $TMP_MAPPER_NAME
+	cryptsetup open --type plain -d /dev/urandom $TMP_DEVICE $TMP_MAPPER_NAME
 	mkfs.ext4  $TMP_MAPPER
 	verbose_mount $TMP_MAPPER $TMP_PATH
 }
@@ -117,13 +117,13 @@ compute-key)
 	;;
 top)
 	mount_keys
-	#mount_encrypted_tmp
+	mount_encrypted_tmp
 	compute_key
 	exit 0
 	;;
 bottom)
 	delete_key
-	#umount_encrypted_tmp
+	umount_encrypted_tmp
 	umount_key
 	exit 0
 	;;
