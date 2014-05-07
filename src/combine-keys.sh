@@ -8,9 +8,15 @@ fi
 
 wait_device() {
 	device=$1
+	attempts=0
 	until [ -e $device ]; do
 		echo "Waiting for $device. Sleeping 1s."
 		sleep 1
+		attempts=$(($attempts + 1))
+		if [ $attempts -ge 60 ]; then
+			echo "Waited 60s for device. Giving up."
+			exit 1
+		fi
 	done
 }
 

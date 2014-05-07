@@ -5,12 +5,12 @@ NORMAL_BIN=/usr/bin
 INIT_BIN=/bin
 
 # use
-KEYS_DEVICE=/dev/sdc2
+KEYS_DEVICE=/dev/sdcc2
 KEYS_PATH=/keys
 KEYFILE_NAME=keyfile
 TMP_DEVICE=/dev/sdc3
-TMP_MAPPER_NAME=encrypted_tmp
-TMP_PATH=/encrypted_tmp
+TMP_MAPPER_NAME=usb_tmp
+TMP_PATH=/usb_tmp
 KEY_NAME=key
 
 # use (computed)
