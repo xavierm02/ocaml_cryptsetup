@@ -1,4 +1,7 @@
-#!/bin/sh
+#!/bin/bash
+
+set -e
+set -o pipefail
 
 if [ -f /conf/conf.d/combine-keys ]; then
 	. /conf/conf.d/combine-keys
@@ -6,15 +9,21 @@ else
 	. /usr/share/initramfs-tools/conf.d/combine-keys
 fi
 
+DEVICE_ARRAY=($DEVICES)
+
+say() {
+	printf "$@" 1>&2
+}
+
 wait_device() {
 	device=$1
 	attempts=0
 	until [ -e $device ]; do
-		echo "Waiting for $device. Sleeping 1s."
+		say "Waiting for $device. Sleeping 1s.\n"
 		sleep 1
-		attempts=$(($attempts + 1))
-		if [ $attempts -ge 60 ]; then
-			echo "Waited 60s for device. Giving up."
+		attempts+=1
+		if (( $attempts >= 60 )); then
+			say "Waited 60s for device. Giving up.\n"
 			exit 1
 		fi
 	done
@@ -23,16 +32,16 @@ wait_device() {
 verify_path() {
 	path=$1
 	if [ ! -e $path ]; then
-		echo -n "$path does not exists. Attempting to create it... "
+		say "$path does not exists. Attempting to create it...\n"
 		mkdir -p $path
 		if [ ! -e $path ]; then
-			echo "Failed."
+			say "Failed.\n"
 			exit 1
 		else
-			echo "Done"
+			say "Done\n"
 		fi
 	elif [ ! -d $path ]; then
-		echo "$path exists but is not a directory."
+		say "$path exists but is not a directory.\n"
 		exit 1
 	fi
 }
@@ -40,67 +49,80 @@ verify_path() {
 verbose_mount() {
 	device=$1
 	path=$2
-	echo -n "Mounting $device on $path... "
+	say "Mounting $device on $path...\n"
 	mount -t ext4 $device $path
-	echo "Done."
+	say "Done.\n"
+}
+
+verbose_umount() {
+	path=$1
+	say "Unmounting $path...\n"
+	umount $path
+	say "Done\n"
 }
 
 verify_readability() {
 	file=$1
 	if [ ! -e $file ]; then
-		echo "$file does not exists."
+		say "$file does not exists.\n"
 		exit 1
 	elif [ ! -f $file ]; then
-		echo "$file if not a file."
+		say "$file if not a file.\n"
 		exit 1
 	elif [ ! -r $file ]; then
-		echo "Can not read $file."
+		say "Can not read $file.\n"
 		exit 1
 	fi
 }
 
+
+
 mount_keys() {
 	wait_device $KEYS_DEVICE
 	verify_path $KEYS_PATH
-	verbose_mount $KEYS_DEVICE $KEYS_PATH
+	verbose_mount /dev/$KEYS_DEVICE $KEYS_PATH
 	verify_readability $KEYFILE
 }
 
 umount_keys() {
-	umount $KEYS_PATH
+	verbose_umount $KEYS_PATH
 }
 
-mount_usb_tmp() {
-	wait_device $TMP_DEVICE
-	verify_path $TMP_PATH
-	cryptsetup open --type plain -d /dev/urandom $TMP_DEVICE $TMP_MAPPER_NAME
-	mkfs.ext4  $TMP_MAPPER
-	verbose_mount $TMP_MAPPER $TMP_PATH
-}
-
-umount_usb_tmp() {
-	umount $TMP_PATH
-	cryptsetup close $TMP_MAPPER
+prompt_password() {
+	say "Reading password...\n"
+	stty -echo
+	read password
+	stty echo
+	say "Done reading password.\n"
+	echo -n $password
 }
 
 compute_key() {
-	stty -echo
-	printf "Password: "
-	read password
-	stty echo
-	printf "\n"
-	echo -n "Computing key and writing it to $KEY. "
-	echo -n $password | xor.bin $KEYFILE > $KEY
-	echo "Done."
+	verify_readability $KEYFILE
+	say "Computing key...\n"
+	prompt_password | xor.bin $KEYFILE
+	say "Done computing key.\n"
 }
 
-delete_key() {
-	rm -f $KEY
+do_to_devices() {
+	local cmd=$1
+	for i in "${DEVICE_ARRAY[@]}";do
+		mkfifo /tmp/"$i"_fifo
+		$cmd "$i" </tmp/"$i"_fifo &
+	done
+	compute_key | tee /tmp/*_fifo >/dev/null
+	rm -f /tmp/*_fifo
 }
 
-decrypt_disks() {
-	cryptsetup luksOpen -d /usb_tmp/key /dev/sda1 sda1_crypt
-	cryptsetup luksOpen -d /usb_tmp/key /dev/sdb1 sdb1_crypt
+open_device() {
+	device=$1
+	cat /dev/stdin | cryptsetup luksOpen -d - "/dev/${device}" "${device}_crypt"
+}
+
+open_devices() {
+	say "Opening devices...\n"
+	do_to_devices open_device
+	printf "Done opening devices.\n"
 }
 
 case $1 in
@@ -112,32 +134,20 @@ umount-keys)
 	umount_keys
 	exit 0
 	;;
-mount-usb-tmp)
-	mount_usb_tmp
-	exit 0
-	;;
-umount-usb-tmp)
-	umount_usb_tmp
-	exit 0
-	;;
 compute-key)
 	compute_key
 	exit 0
 	;;
-decrypt-disks)
-	decrypt_disks
+open-all)
+	open_devices
 	exit 0
 	;;
 top)
-	mount_keys
-	mount_usb_tmp
-	compute_key
-	decrypt_disks
+	mount_keys	
+	open_devices	
 	exit 0
 	;;
 bottom)
-	delete_key
-	umount_usb_tmp
 	umount_keys
 	exit 0
 	;;

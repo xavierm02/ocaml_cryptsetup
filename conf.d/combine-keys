@@ -5,15 +5,10 @@ NORMAL_BIN=/usr/bin
 INIT_BIN=/bin
 
 # use
-KEYS_DEVICE=/dev/sdc2
+DEVICES="sda1 sdb1"
+KEYS_DEVICE=sdc2
 KEYS_PATH=/keys
 KEYFILE_NAME=keyfile
-TMP_DEVICE=/dev/sdc3
-TMP_MAPPER_NAME=usb_tmp
-TMP_PATH=/usb_tmp
-KEY_NAME=key
 
 # use (computed)
 KEYFILE=$KEYS_PATH/$KEYFILE_NAME
-TMP_MAPPER=/dev/mapper/$TMP_MAPPER_NAME
-KEY=$TMP_PATH/$KEY_NAME

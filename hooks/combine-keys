@@ -35,6 +35,6 @@ recpexec() {
 
 recpexec $NORMAL_BIN/$XOR_NAME $INIT_BIN/$XOR_NAME
 recpexec $NORMAL_BIN/$COMBINE_KEYS_NAME $INIT_BIN/$COMBINE_KEYS_NAME
-recpexec /sbin/mkfs.ext4 /sbin/mkfs.ext4
+recpexec /bin/bash /bin/bash
 
 exit 0
