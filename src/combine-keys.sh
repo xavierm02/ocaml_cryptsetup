@@ -1,27 +1,47 @@
-#!/bin/bash
+#!/bin/zsh
+
+# ZSH is used because it can handle binary data in variables
+
+###########
+# Options #
+###########
 
 set -e
 set -o pipefail
 
+######################
+# Read configuration #
+######################
+
 if [ -f /conf/conf.d/combine-keys ]; then
-	. /conf/conf.d/combine-keys
+	. /conf/conf.d/combine-keys # initramfs
 else
-	. /usr/share/initramfs-tools/conf.d/combine-keys
+	. /usr/share/initramfs-tools/conf.d/combine-keys # normal
 fi
 
-DEVICE_ARRAY=($DEVICES)
+#
+# TODO
+#
+
+DEVICE_ARRAY=(${=DEVICES})
+
+#########
+# Utils #
+#########
 
 say() {
 	printf "$@" 1>&2
 }
 
 wait_device() {
+	local device
+	local attemps
 	device=$1
 	attempts=0
 	until [ -e $device ]; do
 		say "Waiting for $device. Sleeping 1s.\n"
 		sleep 1
-		attempts+=1
+		attempts=$(($attempts + 1))
 		if (( $attempts >= 60 )); then
 			say "Waited 60s for device. Giving up.\n"
 			exit 1
@@ -29,40 +49,43 @@ wait_device() {
 	done
 }
 
-verify_path() {
-	path=$1
-	if [ ! -e $path ]; then
+verify_directory() {
+	local directory
+	directory=$1
+	if [ ! -e $directory ]; then
 		say "$path does not exists. Attempting to create it...\n"
-		mkdir -p $path
-		if [ ! -e $path ]; then
+		mkdir -p $directory
+		if [ ! -e $directory ]; then
 			say "Failed.\n"
 			exit 1
 		else
 			say "Done\n"
 		fi
-	elif [ ! -d $path ]; then
-		say "$path exists but is not a directory.\n"
+	elif [ ! -d $directory ]; then
+		say "$directory exists but is not a directory.\n"
 		exit 1
 	fi
 }
 
 verbose_mount() {
+	local device
+	local directory
 	device=$1
-	path=$2
-	say "Mounting $device on $path...\n"
-	mount -t ext4 $device $path
+	directory=$2
+	say "Mounting $device on $directory... "
+	mount -t ext4 $device $directory
 	say "Done.\n"
 }
 
 verbose_umount() {
-	path=$1
-	say "Unmounting $path...\n"
-	umount $path
+	local directory=$1
+	say "Unmounting $directory... "
+	umount $directory
 	say "Done\n"
 }
 
 verify_readability() {
-	file=$1
+	local file=$1
 	if [ ! -e $file ]; then
 		say "$file does not exists.\n"
 		exit 1
@@ -75,11 +98,15 @@ verify_readability() {
 	fi
 }
 
+#############
+# Functions #
+#############
 
+# /keys partition functions
 
 mount_keys() {
-	wait_device $KEYS_DEVICE
-	verify_path $KEYS_PATH
+	wait_device /dev/$KEYS_DEVICE
+	verify_directory $KEYS_PATH
 	verbose_mount /dev/$KEYS_DEVICE $KEYS_PATH
 	verify_readability $KEYFILE
 }
@@ -88,41 +115,54 @@ umount_keys() {
 	verbose_umount $KEYS_PATH
 }
 
+# main functions
+
 prompt_password() {
-	say "Reading password...\n"
+	local password
+	say "Reading password... "
 	stty -echo
 	read password
 	stty echo
-	say "Done reading password.\n"
-	echo -n $password
+	say "Done.\n"
+	print -rn $password
 }
 
 compute_key() {
+	local password
 	verify_readability $KEYFILE
-	say "Computing key...\n"
-	prompt_password | xor.bin $KEYFILE
-	say "Done computing key.\n"
+	password=$(prompt_password)
+	say "Computing key... "
+	print -rn $password | xor.bin $KEYFILE
+	say "Done.\n"
 }
 
 do_to_devices() {
-	local cmd=$1
-	for i in "${DEVICE_ARRAY[@]}";do
-		mkfifo /tmp/"$i"_fifo
-		$cmd "$i" </tmp/"$i"_fifo &
+	local cmd
+	local key
+	cmd=$1
+	key=$(compute_key)
+	print -r "Devices: $DEVICES"
+	for i in "${DEVICE_ARRAY[@]}"; do
+		print -rn $key | $cmd "$i"
 	done
-	compute_key | tee /tmp/*_fifo >/dev/null
-	rm -f /tmp/*_fifo
+}
+
+# convenience functions
+
+format_device() {
+	local device
+	device=$1
+	say "Formatting $device with given key... "
+	cat /dev/stdin | cryptsetup luksFormat --key-file - "/dev/${device}"
+	say "Done.\n"
 }
 
 open_device() {
+	local device
 	device=$1
-	cat /dev/stdin | cryptsetup luksOpen -d - "/dev/${device}" "${device}_crypt"
-}
-
-open_devices() {
-	say "Opening devices...\n"
-	do_to_devices open_device
-	printf "Done opening devices.\n"
+	say "Opening device $device... "
+	cat /dev/stdin | cryptsetup luksOpen --key-file - "/dev/${device}" "${device}_crypt"
+	say "Done.\n"
 }
 
 case $1 in
@@ -138,16 +178,24 @@ compute-key)
 	compute_key
 	exit 0
 	;;
-open-all)
-	open_devices
+format-devices)
+	do_to_devices format-device
 	exit 0
 	;;
-top)
+open-devices)
+	do_to_devices open_device
+	exit 0
+	;;
+installation-initialize)
+	do_to_devices format_device
+	exit 0
+	;;
+initramfs-top)
 	mount_keys	
 	open_devices	
 	exit 0
 	;;
-bottom)
+initramfs-bottom)
 	umount_keys
 	exit 0
 	;;
