@@ -20,11 +20,10 @@ esac
 remkdir() {
 	dir=$1
 	rm -rf $dir
-	mkdir $p $dir
+	mkdir $dir
 }
 
 remkdir ${DESTDIR}${KEYS_PATH}
-remkdir ${DESTDIR}${TMP_PATH}
 
 recpexec() {
 	file=$1
