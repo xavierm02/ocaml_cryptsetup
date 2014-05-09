@@ -6,6 +6,6 @@ prereqs)
 	;;
 esac
 
-combine-keys.sh bottom
+combine-keys.sh initramfs-bottom
 
 exit 0

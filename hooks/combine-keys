@@ -34,6 +34,6 @@ recpexec() {
 
 recpexec $NORMAL_BIN/$XOR_NAME $INIT_BIN/$XOR_NAME
 recpexec $NORMAL_BIN/$COMBINE_KEYS_NAME $INIT_BIN/$COMBINE_KEYS_NAME
-recpexec /bin/bash /bin/bash
+recpexec /bin/zsh /bin/zsh
 
 exit 0
