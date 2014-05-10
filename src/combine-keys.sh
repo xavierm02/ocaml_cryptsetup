@@ -2,6 +2,12 @@
 
 # ZSH is used because it can handle binary data in variables
 
+########
+# Test #
+########
+
+TEST=0
+
 ###########
 # Options #
 ###########
@@ -9,14 +15,27 @@
 set -e
 set -o pipefail
 
+##########
+# Output #
+##########
+
+say() {
+	echo -n "$@" 1>&2
+}
+
 ######################
 # Read configuration #
 ######################
 
-if [ -f /conf/conf.d/combine-keys ]; then
+if  [ -f conf.d/combine-keys ] && [ $TEST -eq 1 ]; then
+	. conf.d/combine-keys # test
+elif [ -f /conf/conf.d/combine-keys ]; then
 	. /conf/conf.d/combine-keys # initramfs
-else
+elif [ -f /usr/share/initramfs-tools/conf.d/combine-keys ]; then
 	. /usr/share/initramfs-tools/conf.d/combine-keys # normal
+else
+	say "Could not find the configuration file.\n"
+	exit 1
 fi
 
 #
@@ -28,10 +47,6 @@ DEVICE_ARRAY=(${=DEVICES})
 #########
 # Utils #
 #########
-
-say() {
-	printf "$@" 1>&2
-}
 
 wait_device() {
 	local device
