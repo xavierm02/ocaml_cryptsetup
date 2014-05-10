@@ -23,6 +23,10 @@ say() {
 	print -rn -- $@ 1>&2
 }
 
+sayln() {
+	print -r -- $@ 1>&2
+}
+
 ######################
 # Read configuration #
 ######################
@@ -34,7 +38,7 @@ elif [ -f /conf/conf.d/combine-keys ]; then
 elif [ -f /usr/share/initramfs-tools/conf.d/combine-keys ]; then
 	. /usr/share/initramfs-tools/conf.d/combine-keys # normal
 else
-	say "Could not find the configuration file.\n"
+	sayln "Could not find the configuration file."
 	exit 1
 fi
 
@@ -54,11 +58,11 @@ wait_device() {
 	device=$1
 	attempts=0
 	until [ -e $device ]; do
-		say "Waiting for $device. Sleeping 1s.\n"
+		sayln "Waiting for $device. Sleeping 1s."
 		sleep 1
 		attempts=$(($attempts + 1))
 		if (( $attempts >= 60 )); then
-			say "Waited 60s for device. Giving up.\n"
+			sayln "Waited 60s for device. Giving up."
 			exit 1
 		fi
 	done
@@ -68,16 +72,16 @@ verify_directory() {
 	local directory
 	directory=$1
 	if [ ! -e $directory ]; then
-		say "$path does not exists. Attempting to create it...\n"
+		sayln "$path does not exists. Attempting to create it... "
 		mkdir -p $directory
 		if [ ! -e $directory ]; then
-			say "Failed.\n"
+			sayln "Failed."
 			exit 1
 		else
-			say "Done\n"
+			sayln "Done."
 		fi
 	elif [ ! -d $directory ]; then
-		say "$directory exists but is not a directory.\n"
+		sayln "$directory exists but is not a directory."
 		exit 1
 	fi
 }
@@ -89,26 +93,26 @@ verbose_mount() {
 	directory=$2
 	say "Mounting $device on $directory... "
 	mount -t ext4 $device $directory
-	say "Done.\n"
+	sayln "Done."
 }
 
 verbose_umount() {
 	local directory=$1
 	say "Unmounting $directory... "
 	umount $directory
-	say "Done\n"
+	sayln "Done"
 }
 
 verify_readability() {
 	local file=$1
 	if [ ! -e $file ]; then
-		say "$file does not exists.\n"
+		sayln "$file does not exists."
 		exit 1
 	elif [ ! -f $file ]; then
-		say "$file if not a file.\n"
+		sayln "$file if not a file."
 		exit 1
 	elif [ ! -r $file ]; then
-		say "Can not read $file.\n"
+		sayln "Can not read $file."
 		exit 1
 	fi
 }
@@ -138,7 +142,7 @@ prompt_password() {
 	stty -echo
 	read password
 	stty echo
-	say "Done.\n"
+	sayln "Done."
 	print -rn -- $password
 }
 
@@ -148,7 +152,7 @@ compute_key() {
 	password=$(prompt_password)
 	say "Computing key... "
 	print -rn -- $password | xor.bin $KEYFILE
-	say "Done.\n"
+	sayln "Done."
 }
 
 do_to_devices() {
@@ -156,7 +160,7 @@ do_to_devices() {
 	local key
 	cmd=$1
 	key=$(compute_key)
-	say "Devices: $DEVICES\n"
+	sayln "Devices: $DEVICES"
 	for i in "${DEVICE_ARRAY[@]}"; do
 		print -rn -- $key | $cmd "$i"
 	done
@@ -169,7 +173,7 @@ format_device() {
 	device=$1
 	say "Formatting $device with given key... "
 	cat /dev/stdin | cryptsetup luksFormat --key-file - "/dev/${device}"
-	say "Done.\n"
+	sayln "Done."
 }
 
 open_device() {
@@ -177,7 +181,7 @@ open_device() {
 	device=$1
 	say "Opening device $device... "
 	cat /dev/stdin | cryptsetup luksOpen --key-file - "/dev/${device}" "${device}_crypt"
-	say "Done.\n"
+	sayln "Done."
 }
 
 case $1 in
