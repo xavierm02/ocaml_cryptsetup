@@ -20,7 +20,7 @@ set -o pipefail
 ##########
 
 say() {
-	echo -n "$@" 1>&2
+	print -rn -- $@ 1>&2
 }
 
 ######################
@@ -139,7 +139,7 @@ prompt_password() {
 	read password
 	stty echo
 	say "Done.\n"
-	print -rn $password
+	print -rn -- $password
 }
 
 compute_key() {
@@ -147,7 +147,7 @@ compute_key() {
 	verify_readability $KEYFILE
 	password=$(prompt_password)
 	say "Computing key... "
-	print -rn $password | xor.bin $KEYFILE
+	print -rn -- $password | xor.bin $KEYFILE
 	say "Done.\n"
 }
 
@@ -156,9 +156,9 @@ do_to_devices() {
 	local key
 	cmd=$1
 	key=$(compute_key)
-	print -r "Devices: $DEVICES"
+	say "Devices: $DEVICES\n"
 	for i in "${DEVICE_ARRAY[@]}"; do
-		print -rn $key | $cmd "$i"
+		print -rn -- $key | $cmd "$i"
 	done
 }
 

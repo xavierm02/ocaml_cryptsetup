@@ -57,7 +57,7 @@ $(INITRD): $(INSTALL_FILES)
 
 
 
-check: $(INITRN)
+check: $(INITRD)
 	mkdir -p check
 	cp $(INITRD) check/initrd.gz
 	gunzip check/initrd.gz
