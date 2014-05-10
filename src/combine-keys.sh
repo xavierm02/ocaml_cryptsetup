@@ -210,8 +210,8 @@ installation-initialize)
 	exit 0
 	;;
 initramfs-top)
-	mount_keys	
-	open_devices	
+	mount_keys
+	do_to_devices open_device
 	exit 0
 	;;
 initramfs-bottom)
