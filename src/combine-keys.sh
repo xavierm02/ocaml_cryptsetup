@@ -168,6 +168,18 @@ do_to_devices() {
 
 # convenience functions
 
+create_keyfile() {
+	sayln "If you haven't mounted $KEYS_DEVICE on $KEYS_PATH yet, you should delete the keyfile, mount it and create a new keyfile."
+	if [ -e $KEYFILE ]; then
+		sayln "$KEYFILE already exists."
+		exit 1
+	fi
+	say "Creating keyfile $KEYFILE..."
+	dd if=/dev/urandom of=$KEYFILE bs=1 count=32
+	chmod 0400 $KEYFILE
+	sayln "Done."
+}
+
 format_device() {
 	local device
 	device=$1
@@ -193,6 +205,10 @@ umount-keys)
 	umount_keys
 	exit 0
 	;;
+create-keyfile)
+	create_keyfile
+	exit 0
+	;;
 compute-key)
 	compute_key
 	exit 0
@@ -212,6 +228,7 @@ installation-initialize)
 initramfs-top)
 	mount_keys
 	do_to_devices open_device
+	umount_keys
 	exit 0
 	;;
 initramfs-bottom)
@@ -219,7 +236,7 @@ initramfs-bottom)
 	exit 0
 	;;
 *)
-	echo "Unknown action."
+	sayln "Unknown action."
 	exit 1
 	;;
 esac
