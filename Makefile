@@ -1,5 +1,4 @@
 CC=gcc -Wall -Wextra
-INSTALL_DEPENDANCIES=conf.d/combine-keys hooks/conf.d Makefile scripts/local-top/combine-keys scripts/local-bottom/combine-keys src/combine-keys.sh bin/xor.bin
 INITRD=/boot/initrd.img-$(shell uname -r)
 
 include conf.d/combine-keys
@@ -23,7 +22,7 @@ xor: bin/xor.bin
 
 
 
-INSTALL_FILES=/usr/share/initramfs-tools/conf.d/combine-keys $(NORMAL_BIN)/$(COMBINE_KEYS_NAME) $(NORMAL_BIN)/$(XOR_NAME) /usr/share/initramfs-tools/hooks/combine-keys /usr/share/initramfs-tools/scripts/local-top/combine-keys /usr/share/initramfs-tools/scripts/local-bottom/combine-keys
+INSTALL_FILES=/usr/share/initramfs-tools/conf.d/combine-keys $(NORMAL_BIN)/$(COMBINE_KEYS_NAME) $(NORMAL_BIN)/$(XOR_NAME) /usr/share/initramfs-tools/hooks/combine-keys /usr/share/initramfs-tools/scripts/local-top/combine-keys
 
 install: $(INSTALL_FILES)
 
@@ -44,9 +43,6 @@ $(NORMAL_BIN)/$(XOR_NAME): bin/xor.bin
 
 /usr/share/initramfs-tools/scripts/local-top/combine-keys: scripts/local-top/combine-keys
 	sudo cp scripts/local-top/combine-keys /usr/share/initramfs-tools/scripts/local-top/combine-keys
-
-/usr/share/initramfs-tools/scripts/local-bottom/combine-keys: scripts/local-bottom/combine-keys
-	sudo cp scripts/local-bottom/combine-keys /usr/share/initramfs-tools/scripts/local-bottom/combine-keys
 
 
 

@@ -222,16 +222,15 @@ open-devices)
 	exit 0
 	;;
 installation-initialize)
+	mount_keys
+	create_keyfile
 	do_to_devices format_device
+	umount_keys
 	exit 0
 	;;
 initramfs-top)
 	mount_keys
 	do_to_devices open_device
-	umount_keys
-	exit 0
-	;;
-initramfs-bottom)
 	umount_keys
 	exit 0
 	;;
