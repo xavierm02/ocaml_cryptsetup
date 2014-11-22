@@ -1,48 +1,42 @@
-CC=gcc -Wall -Wextra
 INITRD=/boot/initrd.img-$(shell uname -r)
 
-include conf.d/combine-keys
+.PHONY: default all clean install uninstall initrd clean
 
+default: all
 
+all: bin/ocaml_cryptsetup
 
-.PHONY: all xor install uninstall initrd clean
+clean:
+	ocamlbuild -clean
+	rm -rf bin
+	rm -rf check
 
-
-
-all: xor
-
+_build/%.native: %.ml $(wildcard src/*.ml)
+	ocamlbuild -use-ocamlfind -no-links $*.native
 
 bin:
 	mkdir bin
 
-bin/%.bin: src/%.c bin
-	$(CC) -o $@ $<
-
-xor: bin/xor.bin
+bin/%: _build/src/%.native bin
+	cp $< $@
 
 
 
-INSTALL_FILES=/usr/share/initramfs-tools/conf.d/combine-keys $(NORMAL_BIN)/$(COMBINE_KEYS_NAME) $(NORMAL_BIN)/$(XOR_NAME) /usr/share/initramfs-tools/hooks/combine-keys /usr/share/initramfs-tools/scripts/local-top/combine-keys
+INSTALL_FILES=/usr/bin/ocaml_cryptsetup /usr/share/initramfs-tools/hooks/ocaml_cryptsetup /usr/share/initramfs-tools/scripts/local-top/ocaml_cryptsetup
 
 install: $(INSTALL_FILES)
 
 uninstall:
-	sudo rm -f $(INSTALL_FILES)
+	rm -f $(INSTALL_FILES)
 
-/usr/share/initramfs-tools/conf.d/combine-keys: conf.d/combine-keys
-	sudo cp conf.d/combine-keys /usr/share/initramfs-tools/conf.d/combine-keys
+/usr/bin/ocaml_cryptsetup: bin/ocaml_cryptsetup
+	cp $< $@
 
-$(NORMAL_BIN)/$(COMBINE_KEYS_NAME): src/combine-keys.sh
-	sudo cp src/combine-keys.sh $(NORMAL_BIN)/$(COMBINE_KEYS_NAME)
+/usr/share/initramfs-tools/hooks/ocaml_cryptsetup: hooks/ocaml_cryptsetup
+	cp $< $@
 
-$(NORMAL_BIN)/$(XOR_NAME): bin/xor.bin
-	sudo cp bin/xor.bin $(NORMAL_BIN)/$(XOR_NAME)
-
-/usr/share/initramfs-tools/hooks/combine-keys: hooks/combine-keys
-	sudo cp hooks/combine-keys /usr/share/initramfs-tools/hooks/combine-keys
-
-/usr/share/initramfs-tools/scripts/local-top/combine-keys: scripts/local-top/combine-keys
-	sudo cp scripts/local-top/combine-keys /usr/share/initramfs-tools/scripts/local-top/combine-keys
+/usr/share/initramfs-tools/scripts/local-top/ocaml_cryptsetup: scripts/local-top/ocaml_cryptsetup
+	cp $< $@
 
 
 
@@ -50,8 +44,6 @@ initrd: $(INITRD)
 
 $(INITRD): $(INSTALL_FILES)
 	sudo update-initramfs -u
-
-
 
 check: $(INITRD)
 	mkdir -p check
@@ -62,8 +54,4 @@ check: $(INITRD)
 
 
 
-clean:
-	rm -rf bin
-	rm -rf *~ **/*~
-	rm -rf check
-
+.SECONDARY:

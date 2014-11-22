@@ -6,6 +6,6 @@ prereqs)
 	;;
 esac
 
-combine-keys.sh initramfs-top
+ocaml_cryptsetup initramfs_top
 
 exit 0

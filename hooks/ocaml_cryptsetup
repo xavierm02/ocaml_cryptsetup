@@ -15,15 +15,13 @@ esac
 
 . /usr/share/initramfs-tools/hook-functions
 
-. /usr/share/initramfs-tools/conf.d/combine-keys
-
 remkdir() {
 	dir=$1
 	rm -rf $dir
 	mkdir $dir
 }
 
-remkdir ${DESTDIR}${KEYS_PATH}
+remkdir ${DESTDIR}/keys
 
 recpexec() {
 	file=$1
@@ -32,8 +30,6 @@ recpexec() {
 	copy_exec $file $dest
 }
 
-recpexec $NORMAL_BIN/$XOR_NAME $INIT_BIN/$XOR_NAME
-recpexec $NORMAL_BIN/$COMBINE_KEYS_NAME $INIT_BIN/$COMBINE_KEYS_NAME
-recpexec /bin/zsh /bin/zsh
+recpexec /usr/bin/ocaml_cryptsetup /bin/ocaml_cryptsetup
 
 exit 0
