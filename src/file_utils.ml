@@ -27,7 +27,7 @@ let check_file_exists path =
     Unix.stat path |> ignore;
     true
   with
-  | Unix.Unix_error _ -> prerr_endline "err";false
+  | Unix.Unix_error _ -> false
 
 let verbose_wait_file path timeout =
   verbose_wait

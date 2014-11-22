@@ -8,10 +8,21 @@ open File_utils
 let prompt_password () =
   print_string "Password: ";
   IO.flush IO.stdout;
-  silent_simple_command("stty -echo");
+  let could_hide =
+    try
+      silent_simple_command("stty -echo");
+      true
+    with
+    | Error _ -> false
+  in
+  if not could_hide then
+    warning (("stty -echo" |> cyan) ^ " caused an error. You can continue using this program but the password you type will be shown.")
+  else ();
   let password = read_line () in
-  silent_simple_command("stty echo");
-  print_newline ();
+  if could_hide then begin
+    silent_simple_command("stty echo");
+    print_newline ()
+  end else ();
   password
 
 let cryptsetups make_command =
@@ -91,6 +102,7 @@ let _ =
       error "Expected exactly one argument."
     else ();
     try
+      prompt_password () |> ignore;
       Sys.argv.(1)
       |> command_of_string
       |> ocaml_cryptsetup
