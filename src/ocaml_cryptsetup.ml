@@ -66,7 +66,7 @@ let rec ocaml_cryptsetup = function
   | Mount_keys -> mount (key_file_device |> file_of_device) "/keys" timeout
   | Umount_keys -> umount "/keys" timeout
   | Create_key_file ->
-    verbose_simple_command "dd if=/dev/urandom of=/keys/keyfile bs=1 count=32";
+    verbose_simple_command "dd if=/dev/urandom of=/keys/key_file bs=1 count=32";
 	  verbose_simple_command "chmod 0400 /keys/keyfile"
   | Open_devices -> cryptsetups (fun device -> "cryptsetup luksOpen --key-file - " ^ (device |> file_of_device) ^ " " ^ (device |> label_of_device) ^ "_crypt")
   | Format_devices -> cryptsetups (fun device -> "cryptsetup luksFormat --key-file - " ^ (device |> file_of_device))
