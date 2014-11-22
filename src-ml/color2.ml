@@ -27,18 +27,24 @@ let show_errors f =
   with
   | Error message -> message |> prerr_endline
 
+type 'a result =
+  | Result of 'a
+  | Error_message of string
+
 let verbose_do message f =
   prerr_string (message ^ " ");
   IO.flush IO.stderr;
   match f () with
-  | None -> prerr_endline ("[OK]" |> green)
-  | Some error ->
+  | Result result ->
+    prerr_endline ("[OK]" |> green);
+    result
+  | Error_message error ->
     prerr_endline ("[ERROR]" |> red);
     raise (Error error)
 
 let silent_do message f =
   match f () with
-  | None -> ()
-  | Some error ->
+  | Result result -> result
+  | Error_message error ->
     prerr_endline (message ^ " " ^ ("[ERROR]" |> red));
     raise (Error error)
