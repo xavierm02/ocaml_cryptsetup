@@ -4,7 +4,6 @@ open Conf
 open Xor
 open Command
 open File_utils
-open Device
 
 let prompt_password () =
   print_string "Password: ";
@@ -63,13 +62,13 @@ let command_of_string = function
   | command -> raise (Unknown_command command)
 
 let rec ocaml_cryptsetup = function
-  | Mount_keys -> mount (key_file_device |> file_of_device) "/keys" timeout
+  | Mount_keys -> mount key_file_device "/keys" timeout
   | Umount_keys -> umount "/keys" timeout
   | Create_key_file ->
     verbose_simple_command "dd if=/dev/urandom of=/keys/key_file bs=1 count=32";
 	  verbose_simple_command "chmod 0400 /keys/keyfile"
-  | Open_devices -> cryptsetups (fun device -> "cryptsetup luksOpen --key-file - " ^ (device |> file_of_device) ^ " " ^ (device |> label_of_device) ^ "_crypt")
-  | Format_devices -> cryptsetups (fun device -> "cryptsetup luksFormat --key-file - " ^ (device |> file_of_device))
+  | Open_devices -> cryptsetups (fun (device, name) -> "cryptsetup luksOpen --key-file - " ^ device ^ " " ^ name)
+  | Format_devices -> cryptsetups (fun (device, _) -> "cryptsetup luksFormat --key-file - " ^ device)
   | Installation_initialize ->
     [
       Mount_keys;

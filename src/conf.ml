@@ -1,12 +1,11 @@
 open Batteries
 open Command
-open Device
 
-let key_file_device = Label "keys"
+let key_file_device = "/dev/disk/by-label/keys"
 
 let encrypted_devices = [
-  Label "ssd";
-  Label "hdd"
+  ("/dev/sda", "hdd");
+  ("/dev/sdb", "ssd")
 ]
 
 let timeout = 10
