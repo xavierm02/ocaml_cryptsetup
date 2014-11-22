@@ -1,39 +1,68 @@
 open Batteries
-open Sys
 open Color2
+open Command
+open Unix
 
-let check_device_exists device =
+let verbose_wait thing p timeout =
+  verbose_do
+    ("Waiting for " ^ (thing |> cyan) ^ " for " ^ (timeout |> string_of_int |> cyan) ^ " seconds...")
+    (fun () ->
+      let timeout_float = timeout |> float_of_int in
+      let start_time = Unix.time () in
+      let rec aux () =
+        if p () then
+          Result ()
+        else if Unix.time () -. start_time >= timeout_float then
+          Error_message "Timeout!"
+        else begin
+          Unix.sleep 1;
+          aux ()
+        end
+      in
+      aux ()
+    )
+
+let check_file_exists path =
   try
-    if not (file_exists device) then
-      error ("The device " ^ device ^ " doesn't exist!")
-    else ()
+    Unix.stat path |> ignore;
+    true
   with
-  | Sys_error message -> error message
+  | Unix.Unix_error _ -> prerr_endline "err";false
 
-let check_directory_exists directory =
+let verbose_wait_file path timeout =
+  verbose_wait
+    path
+    (fun () -> check_file_exists path)
+    timeout
+
+let check_directory_exists path =
   try
-    if not (file_exists directory) then
-      error ("The directory " ^ directory ^ " doesn't exist!")
-    else if not (is_directory directory) then
-      error ("The file " ^ directory ^ " isn't a directory!")
-    else ()
+    (Unix.stat path).st_kind = Unix.S_DIR
   with
-  | Sys_error message -> error message
+  | Unix.Unix_error _ -> false
 
-let stderr2 =
-  IO.stderr
-  |> IO.synchronize_out
+let verbose_wait_directory path timeout =
+  verbose_wait_file path timeout;
+  verbose_assert (check_directory_exists path) ((path |> cyan) ^ " exists but is not a directory!")
 
-let safe_command command =
-  let status = Sys.command command in
-  if status <> 0 then
-    error ("Command " ^ (command |> cyan) ^ " returned " ^ (string_of_int status) ^ "!")
-  else ()
+let check_device_exists path =
+  try
+    match (Unix.stat path).st_kind with
+    | Unix.S_BLK -> true
+    | 	Unix.S_LNK -> prerr_endline "qwe"; false
+    | _ -> prerr_endline "nope"; false
+  with
+  | Unix.Unix_error _ -> false
 
-let create_safe_process program arguments input output =
-  Unix.create_process program arguments input output Unix.stderr
+let verbose_wait_device path timeout =
+  verbose_wait_file path timeout;
+  verbose_assert (check_device_exists path) ((path |> cyan) ^ " exists but is not a device!")
 
-let mount device directory =
-  check_device_exists device;
-  check_directory_exists directory;
-  safe_command ("mount " ^ device ^ " " ^ directory)
+let mount device path timeout =
+  verbose_wait_device device timeout;
+  verbose_wait_directory path timeout;
+  verbose_simple_command ("mount " ^ device ^ " " ^ path)
+
+let umount path timeout =
+  verbose_wait_directory path timeout;
+  verbose_simple_command ("umount " ^ path)

@@ -48,3 +48,8 @@ let silent_do message f =
   | Error_message error ->
     prerr_endline (message ^ " " ^ ("[ERROR]" |> red));
     raise (Error error)
+
+let verbose_assert b error_message =
+  if not b then
+    error error_message
+  else ()

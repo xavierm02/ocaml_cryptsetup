@@ -3,26 +3,8 @@ open Color2
 open Conf
 open Xor
 open Command
-
-
-let wait_timeout file timeout =
-  verbose_do
-    ("Waiting for " ^ (file |> cyan) ^ " for " ^ (timeout |> string_of_int |> cyan) ^ " seconds...")
-    (fun () ->
-      let timeout_float = timeout |> float_of_int in
-      let start_time = Unix.time () in
-      let rec aux () =
-        if Sys.file_exists file then
-          Result ()
-        else if Unix.time () -. start_time >= timeout_float then
-          Error_message "Timeout!"
-        else begin
-          Unix.sleep 1;
-          aux ()
-        end
-      in
-      aux ()
-    )
+open File_utils
+open Device
 
 let prompt_password () =
   print_string "Password: ";
@@ -81,8 +63,8 @@ let command_of_string = function
   | command -> raise (Unknown_command command)
 
 let rec ocaml_cryptsetup = function
-  | Mount_keys -> verbose_command ("mount " ^ (key_file_device |> file_of_device) ^ " /keys") |> ignore
-  | Umount_keys -> verbose_command "umount /keys" |> ignore
+  | Mount_keys -> mount (key_file_device |> file_of_device) "/keys" timeout
+  | Umount_keys -> umount "/keys" timeout
   | Create_key_file ->
     verbose_simple_command "dd if=/dev/urandom of=/keys/keyfile bs=1 count=32";
 	  verbose_simple_command "chmod 0400 /keys/keyfile"
