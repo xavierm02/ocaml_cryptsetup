@@ -31,5 +31,6 @@ recpexec() {
 }
 
 recpexec /usr/bin/ocaml_cryptsetup /bin/ocaml_cryptsetup
+recpexec /bin/stty /bin/stty
 
 exit 0
