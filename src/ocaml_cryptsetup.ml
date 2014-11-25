@@ -6,20 +6,17 @@ open Command
 open File_utils
 
 let prompt_password () =
+  let stty_present = check_file_exists "/bina/stty" in
+  if not stty_present then
+    info (("stty" |> cyan) ^ " is not present on the system so the password will not be hidden.")
+  else ();
   print_string "Password: ";
   IO.flush IO.stdout;
-  let could_hide =
-    try
-      silent_simple_command("stty -echo");
-      true
-    with
-    | Error _ -> false
-  in
-  if not could_hide then
-    warning (("stty -echo" |> cyan) ^ " caused an error. You can continue using this program but the password you type will be shown.")
+  if stty_present then
+    silent_simple_command("stty -echo")
   else ();
   let password = read_line () in
-  if could_hide then begin
+  if stty_present then begin
     silent_simple_command("stty echo");
     print_newline ()
   end else ();
@@ -72,14 +69,25 @@ let command_of_string = function
   | "Initramfs_top" -> Initramfs_top
   | command -> raise (Unknown_command command)
 
+let string_of_command = function
+  | Mount_keys -> "mount_keys"
+  | Umount_keys -> "umount_keys"
+  | Create_key_file -> "create_key_file"
+  | Open_devices -> "open_devices"
+  | Format_devices -> "format_devices"
+  | Installation_initialize -> "installation_initialize"
+  | Initramfs_top -> "Initramfs_top"
+
+let commands = [Mount_keys; Umount_keys; Create_key_file; Open_devices; Format_devices; Installation_initialize; Initramfs_top]
+
 let rec ocaml_cryptsetup = function
   | Mount_keys -> mount key_file_device "/keys" timeout
   | Umount_keys -> umount "/keys" timeout
   | Create_key_file ->
-    verbose_simple_command "dd if=/dev/urandom of=/keys/key_file bs=1M count=32";
-	  verbose_simple_command "chmod 0400 /keys/key_file"
-  | Open_devices -> cryptsetups (fun (device, name) -> "cryptsetup luksOpen --key-file - " ^ device ^ " " ^ name)
-  | Format_devices -> cryptsetups (fun (device, _) -> "cryptsetup luksFormat --key-file - " ^ device)
+    verbose_simple_command "echo dd if=/dev/urandom of=/keys/key_file bs=1M count=32";
+	  verbose_simple_command "echo chmod 0400 /keys/key_file"
+  | Open_devices -> cryptsetups (fun (device, name) -> "echo cryptsetup luksOpen --key-file - " ^ device ^ " " ^ name)
+  | Format_devices -> cryptsetups (fun (device, _) -> "echo cryptsetup luksFormat --key-file - " ^ device)
   | Installation_initialize ->
     [
       Mount_keys;
@@ -96,16 +104,17 @@ let rec ocaml_cryptsetup = function
     ]
     |> List.iter ocaml_cryptsetup
 
+let error_message = "Expected exactly one of the following commands as argument: " ^ (commands |> List.map (string_of_command %> cyan) |> String.join " | ") ^ "."
+
 let _ =
   show_errors (fun () ->
     if Sys.argv |> Array.length <> 2 then
-      error "Expected exactly one argument."
+      error ("No argument given! " ^ error_message)
     else ();
     try
-      prompt_password () |> ignore;
       Sys.argv.(1)
       |> command_of_string
       |> ocaml_cryptsetup
     with
-    | Unknown_command command -> error ("Unknown command " ^ (command |> cyan) ^ "!")
+    | Unknown_command command -> error ("Unknown command " ^ (command |> cyan) ^ "! " ^ error_message)
   )
