@@ -3,14 +3,23 @@ open Color2
 
 let exec_command ?(input = None) command =
   let stdout2, stdin2, stderr2 = Unix.open_process_full command [||] in
-  begin
+  let todo =
     match input with
-    | None -> ()
-    | Some x -> IO.copy x stdin2
-  end;
+    | None -> fun () -> ()
+    | Some x ->
+      let pid = Unix.fork () in
+      if pid = 0 then begin
+        IO.copy x stdin2;
+        exit 0
+      end else begin
+        fun () ->
+          Unix.waitpid [] pid |> ignore
+      end
+  in
   IO.close_out stdin2;
   let output_messages = stdout2 |> IO.read_all in
   let error_messages = stderr2 |> IO.read_all in
+  todo ();
   if Unix.close_process_full (stdout2, stdin2, stderr2) = Unix.WEXITED 0 then
     Result output_messages
   else
@@ -28,8 +37,8 @@ let verbose_command ?(input = None) command =
     (command |> cyan)
     (fun () ->
       exec_command
-      ~input:input
-      command
+        ~input:input
+        command
     )
 
 let silent_command ?(input = None) command =

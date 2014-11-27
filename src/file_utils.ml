@@ -49,8 +49,7 @@ let check_device_exists path =
   try
     match (Unix.stat path).st_kind with
     | Unix.S_BLK -> true
-    | 	Unix.S_LNK -> prerr_endline "qwe"; false
-    | _ -> prerr_endline "nope"; false
+    | _ -> false
   with
   | Unix.Unix_error _ -> false
 
