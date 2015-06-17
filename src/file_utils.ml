@@ -1,51 +1,50 @@
-open Batteries
+open Utils
 open Color2
 open Command
 open Unix
 
-let verbose_wait thing p timeout =
-  verbose_do
-    ("Waiting for " ^ (thing |> cyan) ^ " for " ^ (timeout |> string_of_int |> cyan) ^ " seconds...")
-    (fun () ->
-      let timeout_float = timeout |> float_of_int in
-      let start_time = Unix.time () in
-      let rec aux () =
-        if p () then
-          Result ()
-        else if Unix.time () -. start_time >= timeout_float then
-          Error_message "Timeout!"
-        else begin
-          Unix.sleep 1;
-          aux ()
-        end
-      in
-      aux ()
-    )
+exception Timeout
 
-let check_file_exists path =
+let wait_for_thing thing check timeout =
+  "Waiting for " ^ (thing |> cyan) ^ " for "
+    ^ (timeout |> string_of_int |> cyan) ^ " seconds... "
+    |> print_string;
+  flush_all ();
+  let timeout_float = timeout |> float_of_int in
+  let start_time = Unix.time () in
+  while not (check ()) do
+    if Unix.time () -. start_time >= timeout_float then begin
+      error |> prerr_endline;
+      raise Timeout
+    end else begin
+      Unix.sleep 1
+    end
+  done;
+  ok |> print_endline
+
+let file_exists path =
   try
     Unix.stat path |> ignore;
     true
   with
   | Unix.Unix_error _ -> false
 
-let verbose_wait_file path timeout =
-  verbose_wait
-    path
-    (fun () -> check_file_exists path)
-    timeout
+let wait_for_file path timeout =
+  wait_for_thing path (fun () -> file_exists path) timeout
 
-let check_directory_exists path =
+let is_directory path =
   try
     (Unix.stat path).st_kind = Unix.S_DIR
   with
   | Unix.Unix_error _ -> false
 
-let verbose_wait_directory path timeout =
-  verbose_wait_file path timeout;
-  verbose_assert (check_directory_exists path) ((path |> cyan) ^ " exists but is not a directory!")
+let wait_for_directory path timeout =
+  wait_for_file path timeout;
+  if not (is_directory path) then
+    failwith ((path |> cyan) ^ " exists but is not a directory!")
+  else ()
 
-let check_device_exists path =
+let is_device path =
   try
     match (Unix.stat path).st_kind with
     | Unix.S_BLK -> true
@@ -53,15 +52,17 @@ let check_device_exists path =
   with
   | Unix.Unix_error _ -> false
 
-let verbose_wait_device path timeout =
-  verbose_wait_file path timeout;
-  verbose_assert (check_device_exists path) ((path |> cyan) ^ " exists but is not a device!")
+let wait_for_device path timeout =
+  wait_for_file path timeout;
+  if not (is_device path) then
+    failwith ((path |> cyan) ^ " exists but is not a device!")
+  else ()
 
 let mount device path timeout =
-  verbose_wait_device device timeout;
-  verbose_wait_directory path timeout;
-  verbose_simple_command ("mount " ^ device ^ " " ^ path)
+  wait_for_directory path timeout;
+  wait_for_device device timeout;
+  command ("mount " ^ device ^ " " ^ path)
 
 let umount path timeout =
-  verbose_wait_directory path timeout;
-  verbose_simple_command ("umount " ^ path)
+  wait_for_directory path timeout;
+  command ("umount " ^ path)

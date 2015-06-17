@@ -1,8 +1,8 @@
-open Batteries
+open Utils
 open Color2
 
 exception Done
-
+(*
 let read_byte_option input =
   try
     Some (IO.read_byte input)
@@ -20,3 +20,4 @@ let password_xor_key_to_output password_input key_input output =
     done
   with
   | Done -> ()
+*)

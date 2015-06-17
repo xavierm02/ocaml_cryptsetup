@@ -12,7 +12,7 @@ clean:
 	rm -rf check
 
 _build/%.native: %.ml $(wildcard src/*.ml)
-	ocamlbuild -use-ocamlfind -no-links $*.native
+	ocamlbuild -use-ocamlfind -lib unix -no-links $*.native
 
 bin:
 	mkdir bin

@@ -1,4 +1,3 @@
-open Batteries
 open Command
 
 let key_file_device = "/dev/disk/by-label/keys"

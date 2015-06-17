@@ -1,47 +1,53 @@
-open Batteries
+open Utils
 open Color2
 open Conf
 open Xor
 open Command
 open File_utils
 
-let disable_echo () =
-  silent_simple_command("stty -echo")
+let enable_echo () : unit =
+  command_with_stdin "stty echo" |> ignore;
+  Sys.set_signal Sys.sigint Sys.Signal_default
 
-let enable_echo () =
-  silent_simple_command("stty echo")
+let disable_echo () : unit =
+  Sys.set_signal Sys.sigint (Sys.Signal_handle (fun _ ->
+    enable_echo ();
+    error ^ " Interrupted!" |> prerr_endline
+  ));
+  command_with_stdin "stty -echo" |> ignore
 
 let prompt_password () : string =
-  let stty_present = check_file_exists "/bin/stty" in
-  if not stty_present then
-    info (("stty" |> cyan) ^ " is not present on the system so the password will not be hidden.")
+  let stty_present =
+    try
+      command "which stty" |> ignore;
+      true
+    with
+    | Command_failed c ->
+      (info ^ " " ^ ("stty" |> cyan)
+        ^ " is needed to hide the password and the failure of the command "
+        ^ (c |> cyan)
+        ^ " seems to indicate that it is not installed. "
+        ^ "The password will therefore not be hidden.")
+        |> prerr_endline;
+      false
+  in
+  if stty_present then
+    disable_echo ()
   else ();
   print_string "Password: ";
-  IO.flush IO.stdout;
-  if stty_present then begin
-    Sys.set_signal Sys.sigint (Sys.Signal_handle (fun _ -> enable_echo (); error "Interrupted."));
-    disable_echo ();
-  end else ();
+  flush_all ();
   let password = read_line () in
   if stty_present then begin
-    enable_echo ();
-    Sys.set_signal Sys.sigint Sys.Signal_default;
-    print_newline ()
+    print_newline ();
+    enable_echo ()
   end else ();
   password
 
-let fixed_combine (a,b) =
-  IO.wrap_out ~write:(fun c ->
-    IO.write a c;
-    IO.write b c)
-    ~output:(fun s i j ->
-      let _ = IO.output a s i j in
-      IO.output b s i j)
-    ~flush:(fun () ->
-      IO.flush a;
-      IO.flush b)
-    ~close:(fun () -> ()) (* Removed close_out calls *)
-    ~underlying:[IO.cast_output a; IO.cast_output b]
+(*let _ = prompt_password () |> print_endline *)
+
+let _ = wait_for_file "qwe" 10
+
+(*
 
 let cryptsetups make_command =
   let pipes_read, pipes_write =
@@ -142,3 +148,4 @@ let _ =
     with
     | Unknown_command command -> error ("Unknown command " ^ (command |> cyan) ^ "! " ^ error_message)
   )
+*)
