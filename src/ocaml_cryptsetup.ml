@@ -43,109 +43,106 @@ let prompt_password () : string =
   end else ();
   password
 
-(*let _ = prompt_password () |> print_endline *)
-
-let _ = wait_for_file "qwe" 10
-
-(*
-
-let cryptsetups make_command =
-  let pipes_read, pipes_write =
-    encrypted_devices
-    |> List.map (ignore %> IO.pipe)
-    |> List.split
-  in
-  let all_pipes_write =
-    pipes_write |> List.fold_left
-      (fun x y -> fixed_combine (x, y |> IO.cast_output) |> IO.cast_output)
-      IO.stdnull
-  in
-  let password = prompt_password () in
-  File.with_file_in "/keys/key_file" (fun key_input ->
-    password_xor_key_to_output
-      (password |> IO.input_string)
-      key_input
-      all_pipes_write
-  );
-  List.iter IO.close_out pipes_write;
-  List.combine encrypted_devices pipes_read
-  |> List.iter (fun (device, pipe_read) ->
-    verbose_command
-      ~input:(Some pipe_read)
-      (make_command device)
-    |> ignore
-  )
-
 type command =
-  | Mount_keys
-  | Umount_keys
-  | Create_key_file
+  | Mount_key_device
+  | Umount_key_device
+  | Create_keyfile
   | Open_devices
   | Format_devices
   | Installation_initialize
   | Initramfs_top
 
+let commands =
+  [
+    Mount_key_device;
+    Umount_key_device;
+    Create_keyfile;
+    Open_devices;
+    Format_devices;
+    Installation_initialize;
+    Initramfs_top
+  ]
+
+
 exception Unknown_command of string
 
 let command_of_string = function
-  | "mount_keys" -> Mount_keys
-  | "umount_keys" -> Umount_keys
-  | "create_key_file" -> Create_key_file
+  | "mount_key_device" -> Mount_key_device
+  | "umount_key_device" -> Umount_key_device
+  | "create_keyfile" -> Create_keyfile
   | "open_devices" -> Open_devices
   | "format_devices" -> Format_devices
   | "installation_initialize" -> Installation_initialize
-  | "Initramfs_top" -> Initramfs_top
-  | command -> raise (Unknown_command command)
+  | "initramfs_top" -> Initramfs_top
+  | cmd -> raise (Unknown_command cmd)
 
 let string_of_command = function
-  | Mount_keys -> "mount_keys"
-  | Umount_keys -> "umount_keys"
-  | Create_key_file -> "create_key_file"
+  | Mount_key_device -> "mount_key_device"
+  | Umount_key_device -> "umount_key_device"
+  | Create_keyfile -> "create_keyfile"
   | Open_devices -> "open_devices"
   | Format_devices -> "format_devices"
   | Installation_initialize -> "installation_initialize"
-  | Initramfs_top -> "Initramfs_top"
+  | Initramfs_top -> "initramfs_top"
 
-let commands = [Mount_keys; Umount_keys; Create_key_file; Open_devices; Format_devices; Installation_initialize; Initramfs_top]
+let error_message () =
+  "Expected exactly one of the following commands as argument: "
+  ^ (commands |> List.map (string_of_command %> cyan) |> String.concat " | ") ^ "."
+
+let get_key () =
+  "Computing key." |> print_endline;
+  let password = prompt_password () in
+  wait_for_file "/keys/keyfile" timeout;
+  let keyfile = "cat /keys/keyfile" |> as_root |> command_with_string_output in
+  password_xor_keyfile password keyfile
 
 let rec ocaml_cryptsetup = function
-  | Mount_keys -> mount key_file_device "/keys" timeout
-  | Umount_keys -> umount "/keys" timeout
-  | Create_key_file ->
-    verbose_simple_command "dd if=/dev/urandom of=/keys/key_file bs=1M count=32";
-	  verbose_simple_command "chmod 0400 /keys/key_file"
-  | Open_devices -> cryptsetups (fun (device, name) -> "echo cryptsetup luksOpen --key-file - " ^ device ^ " " ^ name)
-  | Format_devices -> cryptsetups (fun (device, _) -> "echo cryptsetup luksFormat --key-file - " ^ device)
+  | Mount_key_device -> mount keyfile_device "/keys" timeout
+  | Umount_key_device -> umount "/keys" timeout
+  | Create_keyfile ->
+    "dd if=/dev/urandom of=/keys/keyfile bs=1024 count=1" |> as_root |> command;
+    "chmod 0400 /keys/keyfile" |> as_root |> command
+  | Open_devices ->
+    let key = get_key () in
+    encrypted_devices |> List.iter (fun (device, encrypted_device) ->
+      "cryptsetup luksOpen --key-file - " ^ device ^ " " ^ encrypted_device
+      |> as_root
+      |> general_command (string_input_handler key) drop_output_handler stderr_handler
+      |> ignore
+    )
+  | Format_devices ->
+    let key = get_key () in
+    encrypted_devices |> List.iter (fun (device, encrypted_device) ->
+      "cryptsetup luksFormat --key-file - " ^ device ^ " " ^ encrypted_device
+      |> as_root
+      |> general_command (string_input_handler key) drop_output_handler stderr_handler
+      |> ignore
+    )
   | Installation_initialize ->
     [
-      Mount_keys;
-      Create_key_file;
+      Mount_key_device;
+      Create_keyfile;
       Format_devices;
       Open_devices;
-      Umount_keys
+      Umount_key_device
     ]
     |> List.iter ocaml_cryptsetup
   | Initramfs_top ->
     [
-      Mount_keys;
+      Mount_key_device;
       Open_devices;
-      Umount_keys
+      Umount_key_device
     ]
     |> List.iter ocaml_cryptsetup
 
-let error_message = "Expected exactly one of the following commands as argument: " ^ (commands |> List.map (string_of_command %> cyan) |> String.join " | ") ^ "."
-
-
 let _ =
-  show_errors (fun () ->
-    if Sys.argv |> Array.length <> 2 then
-      error ("No argument given! " ^ error_message)
-    else ();
-    try
-      Sys.argv.(1)
-      |> command_of_string
-      |> ocaml_cryptsetup
-    with
-    | Unknown_command command -> error ("Unknown command " ^ (command |> cyan) ^ "! " ^ error_message)
-  )
-*)
+  if Sys.argv |> Array.length <> 2 then
+    error ^ " No argument given! " ^ error_message () |> prerr_endline
+  else ();
+  try
+    Sys.argv.(1)
+    |> command_of_string
+    |> ocaml_cryptsetup
+  with
+  | Unknown_command cmd ->
+    error ^ " Unknown command " ^ (cmd |> cyan) ^ "! " ^ error_message () |> prerr_endline

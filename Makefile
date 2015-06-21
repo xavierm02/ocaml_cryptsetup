@@ -45,7 +45,7 @@ initrd: $(INITRD)
 $(INITRD): $(INSTALL_FILES)
 	sudo update-initramfs -u
 
-check: $(INITRD)
+check:
 	mkdir -p check
 	cp $(INITRD) check/initrd.gz
 	gunzip check/initrd.gz

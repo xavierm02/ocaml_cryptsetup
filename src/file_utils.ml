@@ -61,8 +61,10 @@ let wait_for_device path timeout =
 let mount device path timeout =
   wait_for_directory path timeout;
   wait_for_device device timeout;
-  command ("mount " ^ device ^ " " ^ path)
+  "mount " ^ device ^ " " ^ path |> as_root |> command
 
 let umount path timeout =
   wait_for_directory path timeout;
-  command ("umount " ^ path)
+  "umount " ^ path |> as_root |> command
+
+let string_of_char c = String.make 1 c

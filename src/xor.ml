@@ -1,23 +1,26 @@
 open Utils
 open Color2
 
-exception Done
-(*
-let read_byte_option input =
-  try
-    Some (IO.read_byte input)
-  with
-  | IO.No_more_input -> None
+let string_of_char c = String.make 1 c
 
-let password_xor_key_to_output password_input key_input output =
-  try
-    while true do
-      match read_byte_option password_input, read_byte_option key_input with
-      | None, None -> raise Done
-      | None, Some key_byte -> key_byte |> IO.write_byte output
-      | Some _, None -> error "The key is too short!"
-      | Some password_byte, Some key_byte -> password_byte lxor key_byte |> IO.write_byte output
-    done
-  with
-  | Done -> ()
-*)
+let char_lxor c1 c2 =
+  let i1 = int_of_char c1 in
+  let i2 = int_of_char c2 in
+  let i3 = i1 lxor i2 in
+  let c3 = char_of_int i3 in
+  c3
+
+let password_xor_keyfile password keyfile =
+  let password_length = String.length password in
+  let keyfile_length = String.length keyfile in
+  if password_length > keyfile_length then
+    failwith "The password is longer than the keyfile!"
+  else ();
+  let result = ref "" in
+  for i = 0 to password_length - 1 do
+    result := !result ^ (char_lxor password.[i] keyfile.[i] |> string_of_char)
+  done;
+  for i = password_length to keyfile_length - 1 do
+    result := !result ^ (keyfile.[i] |> string_of_char)
+  done;
+  !result

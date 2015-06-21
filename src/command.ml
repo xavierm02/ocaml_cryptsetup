@@ -1,3 +1,4 @@
+open Utils
 open Color2
 open Unix
 
@@ -22,7 +23,7 @@ let string_of_in_channel channel =
   with
   | End_of_file -> !string
 
-let general_command stdin2 stdout2 stderr2 command =
+let command_helper stdin2 stdout2 stderr2 command =
   (command |> cyan) ^ " " |> print_string;
   flush_all ();
   let pid = Unix.create_process "/bin/sh" [|"/bin/sh"; "-c"; command|] stdin2 stdout2 stderr2 in
@@ -34,109 +35,122 @@ let general_command stdin2 stdout2 stderr2 command =
     error ^ " " ^ (status |> string_of_status) |> prerr_endline;
     raise (Command_failed command)
 
-let empty_stdin2 f =
-  let stdin2_read, stdin2_write = Unix.pipe () in
-  Unix.close stdin2_write;
-  f stdin2_read;
-  Unix.close stdin2_read
+type 'o file_descr_handler = unit -> (file_descr * (unit -> 'o))
 
-let string_stdout2 f =
-  let stdout2_read, stdout2_write = Unix.pipe () in
-  f stdout2_write;
-  Unix.close stdout2_write;
-  let result =
-    stdout2_read
-    |> Unix.in_channel_of_descr
-    |> string_of_in_channel
+let empty_input_handler : unit file_descr_handler = fun () ->
+  let input_read, input_write = Unix.pipe () in
+  Unix.close input_write;
+  let close () =
+    Unix.close input_read
   in
-  Unix.close stdout2_read;
+  input_read, close
+
+let string_input_handler string : unit file_descr_handler = fun () ->
+  let input_read, input_write = Unix.pipe () in
+  let oc = Unix.out_channel_of_descr input_write in
+  for i = 0 to String.length string - 1 do
+    output_char oc string.[i]
+  done;
+  Unix.close input_write;
+  let close () =
+    Unix.close input_read
+  in
+  input_read, close
+
+let drop_output_handler : unit file_descr_handler = fun () ->
+  let output_read, output_write = Unix.pipe () in
+  let close () =
+    Unix.close output_write;
+    Unix.close output_read
+  in
+  output_write, close
+
+let string_output_handler : string file_descr_handler = fun () ->
+  let output_read, output_write = Unix.pipe () in
+  let close () =
+    Unix.close output_write;
+    let result =
+      output_read
+      |> Unix.in_channel_of_descr
+      |> string_of_in_channel
+    in
+    Unix.close output_read;
+    result
+  in
+  output_write, close
+
+let descr_handler_of_descr descr = fun () -> (descr, fun () -> ())
+
+let stdin_handler = descr_handler_of_descr Unix.stdin
+let stdout_handler = descr_handler_of_descr Unix.stdout
+let stderr_handler = descr_handler_of_descr Unix.stderr
+
+let general_command input_handler output_handler error_handler cmd =
+  let stdin2, close_stdin2 = input_handler () in
+  let stdout2, close_stdout2 = output_handler () in
+  let stderr2, close_stderr2 = error_handler () in
+  command_helper stdin2 stdout2 stderr2 cmd;
+  (close_stdin2 ()), (close_stdout2 ()), (close_stderr2 ())
+
+let proj_3_2 (_, x, _) = x
+
+let command cmd =
+  general_command empty_input_handler drop_output_handler stderr_handler cmd |> ignore
+
+let command_with_stdin cmd =
+  general_command stdin_handler drop_output_handler stderr_handler cmd |> ignore
+
+let command_with_string_output cmd =
+  let _, result, _ = general_command empty_input_handler string_output_handler stderr_handler cmd in
   result
 
-let command command =
-  string_stdout2 (fun stdout2_write ->
-    empty_stdin2 (fun stdin2_read ->
-      general_command stdin2_read stdout2_write Unix.stderr command
-    )
-  )
-
-let command_with_stdin command =
-  string_stdout2 (fun stdout2_write ->
-    general_command Unix.stdin stdout2_write Unix.stderr command
-  )
-(*
-
-let command command =
-  (command |> cyan) ^ " " |> print_string;
-  flush_all ();
-  let stdout2, stdin2 = Unix.open_process command in
-  let output = stdout2 |> string_of_in_channel in
-  let status = close_process (stdout2, stdin2) in
-  match status with
-  | WEXITED 0 ->
-    ok |> print_endline;
-    output
-  | _ ->
-    error ^ (status |> string_of_status) |> prerr_endline;
-    raise (Command_failed command)
-
-    *)
-(*
-let exec_command ?(input = None) command =
-  let stdout2, stdin2, stderr2 = Unix.open_process_full command [||] in
-  let todo =
-    match input with
-    | None -> fun () -> ()
-    | Some x ->
-      let pid = Unix.fork () in
-      if pid = 0 then begin
-        IO.copy x stdin2;
-        exit 0
+let as_root =
+  let f = ref None in
+  let update_f () =
+    try
+      if Unix.geteuid () = 0 then begin
+        ok ^ " The user is " ^ ("root" |> cyan) ^ "." |> print_endline;
+        f := Some (fun cmd -> cmd);
+        raise Done
       end else begin
-        fun () ->
-          Unix.waitpid [] pid |> ignore
-      end
+        info ^ " The user is not " ^ ("root" |> cyan) ^ "." |> print_endline
+      end;
+      begin
+        try
+          command "which sudo" |> ignore;
+          ok ^ " " ^ ("sudo" |> cyan) ^ " is available." |> print_endline;
+          f := Some (fun cmd -> "sudo " ^ cmd);
+          raise Done
+        with
+        | Command_failed _ ->
+          info ^ " " ^ ("sudo" |> cyan) ^ " is not available." |> print_endline;
+      end;
+      begin
+        try
+          command "which su" |> ignore;
+          ok ^ " " ^ ("su" |> cyan) ^ " is available." |> print_endline;
+          f := Some (fun cmd -> "su -c " ^ cmd);
+          raise Done
+        with
+        | Command_failed _ ->
+          info ^ " " ^ ("su" |> cyan) ^ " is not available." |> print_endline;
+      end;
+      error ^ " Could not find a way to run a command as root!" |> prerr_endline;
+      failwith "Could not find a way to run a command as root!"
+    with
+    | Done -> ()
   in
-  IO.close_out stdin2;
-  let output_messages = stdout2 |> IO.read_all in
-  let error_messages = stderr2 |> IO.read_all in
-  todo ();
-  if Unix.close_process_full (stdout2, stdin2, stderr2) = Unix.WEXITED 0 then
-    Result output_messages
-  else
-    Error_message error_messages
-
-let exec_simple_command command =
-  let return_code = Sys.command command in
-  if return_code = 0 then
-    Result ()
-  else
-    Error_message ("Command " ^ (command |> cyan) ^ " returned " ^ (return_code |> string_of_int |> cyan) ^ "!")
-
-let verbose_command ?(input = None) command =
-  verbose_do
-    (command |> cyan)
-    (fun () ->
-      exec_command
-        ~input:input
-        command
-    )
-
-let silent_command ?(input = None) command =
-  silent_do
-    (command |> cyan)
-    (fun () ->
-      exec_command
-      ~input:input
-      command
-    )
-
-let verbose_simple_command command =
-  verbose_do
-    (command |> cyan)
-    (fun () -> exec_simple_command command)
-
-let silent_simple_command command =
-  silent_do
-    (command |> cyan)
-    (fun () -> exec_simple_command command)
-*)
+  let rec _as_root cmd =
+    "Trying to find a way to run " ^ (cmd |> cyan) ^ " as root..." |> print_endline;
+    begin
+      match !f with
+      | None -> update_f ()
+      | _ -> ()
+    end;
+    match !f with
+    | None -> failwith "update_f didn't update f!"
+    | Some g ->
+      let new_cmd = g cmd in
+      ok ^ " The new command is " ^ (new_cmd |> cyan) ^ "." |> print_endline;
+      new_cmd
+  in _as_root
